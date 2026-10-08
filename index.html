@@ -29,7 +29,6 @@ button.dng{color:#c62828}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;min-width:0}
 #title{flex:1 1 200px;font-size:18px;font-weight:600}
-#key{width:90px}
 .lbl{font-size:13px;color:var(--mut);margin:0 0 8px}
 .pal{display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:8px 14px;border:2px solid transparent;font-weight:600;user-select:none}
@@ -92,7 +91,7 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 <div class="card">
 <div class="row">
 <input type="text" id="title" placeholder="1. 곡 제목 입력">
-<input type="text" id="key" placeholder="키 (예: G)">
+
 </div>
 </div>
 
@@ -127,13 +126,15 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 <script>
 var PAL=[["인트로",1],["인터루드",1],["아웃트로",1],
 ["건반",2],["신디",2],["기타",2],["베이스",2],["드럼",2],["보컬",2],
-["벌스",3],["프리코러스",3],["브릿지",3],["엔딩",3],["리프레이즈",3]];
+["벌스",3],["프리코러스",3],["브릿지",3],["엔딩",3],["리프라이즈",3]];
 var GROUP={};PAL.forEach(function(p){GROUP[p[0]]=p[1]});
 var KEY="worship-conti-v1",songs=[],cur=null,sel=-1,view=false,dragI=-1;
 var $=function(id){return document.getElementById(id)};
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function load(){try{var r=localStorage.getItem(KEY);songs=r?JSON.parse(r):[]}catch(e){songs=[]}}
+function fixLbl(l){return l==="리프레이즈"?"리프라이즈":l}
+function load(){try{var r=localStorage.getItem(KEY);songs=r?JSON.parse(r):[]}catch(e){songs=[]}
+ songs.forEach(function(s){(s.blocks||[]).forEach(function(b){b.label=fixLbl(b.label);if(b.subs)b.subs=b.subs.map(fixLbl)})})}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(songs));return true}catch(e){return false}}
 function blank(){return{id:uid(),title:"",key:"",blocks:[],updated:0}}
 function flash(t){$("msg").textContent=t;setTimeout(function(){$("msg").textContent=""},2000)}
@@ -144,7 +145,7 @@ function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(setl))}catch(
 function byId(id){return songs.find(function(s){return s.id===id})}
 function inSet(id){return setl.ids.indexOf(id)>=0}
 function prog(s){return (s.blocks||[]).map(function(b){return b.label}).join(" · ")}
-function ttl(s){return '<b>'+esc(s.title||"(제목 없음)")+(s.key?' <small style="display:inline">'+esc(s.key)+'</small>':'')+'</b><small>'+esc(prog(s))+'</small>'}
+function ttl(s){return '<b>'+esc(s.title||"(제목 없음)")+'</b><small>'+esc(prog(s))+'</small>'}
 function renderArchive(){
  var ql=q.trim().toLowerCase();
  var h=songs.filter(function(s){return !ql||(s.title||"").toLowerCase().indexOf(ql)>=0}).map(function(s){
@@ -169,7 +170,7 @@ function setSetMode(on){
  if(on){
   $("setTitle").textContent=setl.name||"이번 주 콘티";
   $("setBody").innerHTML=setl.ids.map(function(id,i){var x=byId(id);if(!x)return"";
-   return '<div class="card"><div style="font-size:20px;font-weight:700;margin-bottom:10px">'+(i+1)+'. '+esc(x.title||"")+(x.key?' <small style="color:var(--mut);font-weight:400">Key '+esc(x.key)+'</small>':'')+'</div><div class="work" style="min-height:0">'+x.blocks.map(chipRO).join("")+'</div></div>';
+   return '<div class="card"><div style="font-size:20px;font-weight:700;margin-bottom:10px">'+(i+1)+'. '+esc(x.title||"")+'</div><div class="work" style="min-height:0">'+x.blocks.map(chipRO).join("")+'</div></div>';
   }).join("");
   window.scrollTo(0,0);
  }
@@ -195,11 +196,11 @@ function renderPanel(){
 }
 function renderWork(){renderChips();renderPanel()}
 function renderAll(){
- $("title").value=cur.title;$("key").value=cur.key;
+ $("title").value=cur.title;
  renderSongs();renderWork();
  document.body.classList.toggle("view",view);
  $("palCard").style.display=view?"none":"";$("saveRow").style.display=view?"none":"";
- $("title").disabled=view;$("key").disabled=view;
+ $("title").disabled=view;
  $("modeBtn").textContent=view?"✏️ 편집 모드":"👁 보기 모드";
  $("workLbl").textContent=view?"진행 순서":"작업박스 (끌어서 순서 변경 / 탭하면 선택)";
 }
@@ -227,7 +228,6 @@ $("pal").onclick=function(e){
 $("addCustom").onclick=function(){var v=$("custom").value.trim();if(v){add(v);$("custom").value=""}};
 $("custom").onkeydown=function(e){if(e.key==="Enter")$("addCustom").click()};
 $("title").oninput=function(){cur.title=this.value};
-$("key").oninput=function(){cur.key=this.value};
 
 $("work").onclick=function(e){
  var c=e.target.closest(".chip");if(!c||view)return;
