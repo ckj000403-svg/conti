@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f5bd6">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="콘티">
 <title>예배 콘티</title>
 <style>
 :root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#76736b;--bd:#dedbd2;--ac:#2f5bd6;
@@ -329,6 +336,11 @@ $("backBtn").onclick=function(){setSetMode(false)};
 $("modeBtn").onclick=function(){view=!view;sel=-1;renderAll()};
 
 setTab("arch");load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
+</script>
+<script>
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){
+ window.addEventListener("load",function(){try{navigator.serviceWorker.register("sw.js")}catch(e){}});
+}
 </script>
 </body>
 </html>
