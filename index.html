@@ -125,8 +125,8 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 
 <script>
 var PAL=[["인트로",1],["인터루드",1],["아웃트로",1],
-["건반",2],["신디",2],["기타",2],["베이스",2],["드럼",2],["보컬",2],
-["벌스",3],["프리코러스",3],["브릿지",3],["엔딩",3],["리프라이즈",3]];
+["건반",2],["신디",2],["기타",2],["베이스",2],["드럼",2],["보컬",2],["풀밴드",2],
+["벌스",3],["프리코러스",3],["코러스",3],["브릿지",3],["엔딩",3],["리프라이즈",3]];
 var GROUP={};PAL.forEach(function(p){GROUP[p[0]]=p[1]});
 var KEY="worship-conti-v1",songs=[],cur=null,sel=-1,view=false,dragI=-1;
 var $=function(id){return document.getElementById(id)};
@@ -218,7 +218,7 @@ $("pal").onclick=function(e){
  var c=e.target.closest("[data-l]");if(!c)return;
  var l=c.getAttribute("data-l");
  if(NUMS.indexOf(l)>=0){
-  var was=(pending===l);closeNum();if(was)return;
+  var was=(pending===l);closeNum();if(was){add(l);return}
   pending=l;c.classList.add("pend");
   var d=document.createElement("div");d.className="numrow";
   d.innerHTML=[1,2,3,4].map(function(i){return '<span class="chip g'+gOf(l)+'" data-n="'+i+'">'+i+'</span>'}).join("");
