@@ -75,6 +75,19 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 .view .chip{font-size:22px;padding:14px 22px;border-radius:16px}
 .view .work{border:none;padding:0;gap:12px}
 .msg{font-size:13px;color:var(--mut);align-self:center}
+.numsel{display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.numsel .chip{padding:6px 18px;opacity:.55;cursor:pointer}
+.numsel .chip.on{opacity:1;border-color:currentColor}
+.chip.now{border-color:var(--ac);box-shadow:0 0 0 4px var(--ac);opacity:1 !important}
+.work.playing .chip:not(.now){opacity:.5}
+button:disabled{opacity:.4;cursor:default}
+#viewBar{display:none}
+.vbrow{display:flex;gap:8px;align-items:center;justify-content:space-between}
+#playBar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:20;gap:8px;justify-content:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--bd)}
+#playBar button{min-height:52px;font-size:17px;font-weight:700}
+#playBar .big{flex:1;max-width:520px}
+body.hasPlay .app{padding-bottom:110px}
+#toast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:#222;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;z-index:30}
 #tabs{display:none}
 @media (max-width:700px){
  .app,.card,#editor,#main,#setView{width:100%;max-width:100%}
@@ -99,6 +112,7 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
  #saveRow{position:sticky;bottom:0;z-index:5;background:var(--bg);padding:10px 0 6px;margin:0 -2px;border-top:1px solid var(--bd)}
  .view .chip{font-size:20px}
 }
+@media (max-width:700px){.numsel .chip{padding:10px 20px}#playBar button{min-height:56px}}
 </style>
 </head>
 <body data-tab="arch">
@@ -119,9 +133,10 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 <div class="list" id="setList"></div>
 </div>
 </div>
-<div id="setView" style="display:none"><div class="row" style="margin-bottom:10px;align-items:center"><button id="backBtn">← 돌아가기</button><b id="setTitle"></b></div><div id="setBody"></div></div>
+<div id="setView" style="display:none"><div class="row" style="margin-bottom:10px;align-items:center"><button id="backBtn">← 돌아가기</button><b id="setTitle"></b><button id="setStart" class="pri">▶ 진행 시작</button></div><div id="setBody"></div></div>
 
 <div id="editor">
+<div class="card" id="viewBar"><div class="vbrow"><button id="prevSong">◀ 이전곡</button><span class="msg" id="songPos"></span><button id="nextSong">다음곡 ▶</button></div></div>
 <div class="card">
 <div class="row">
 <input type="text" id="title" placeholder="1. 곡 제목 입력">
@@ -157,6 +172,8 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 </div>
 </div>
 
+<div id="playBar"><button id="playBtn" class="pri big">▶ 재생</button><button id="stepPrev" style="display:none">◀ 이전</button><button id="stepNext" class="pri big" style="display:none">다음 ▶</button><button id="stopBtn" style="display:none">■ 정지</button></div>
+<div id="toast"></div>
 <script>
 var PAL=[["인트로",1],["인터루드",1],["아웃트로",1],
 ["건반",2],["신디",2],["기타",2],["베이스",2],["드럼",2],["보컬",2],["풀밴드",2],
@@ -204,6 +221,7 @@ function setSetMode(on){
  setMode=on;$("main").style.display=on?"none":"";$("editor").style.display=on?"none":"";
  $("setView").style.display=on?"block":"none";$("modeBtn").style.display=on?"none":"";$("tabs").style.display=on?"none":"";
  document.body.classList.toggle("view",on||view);
+ updatePlayUI();
  if(on){
   $("setTitle").textContent=setl.name||"이번 주 콘티";
   $("setBody").innerHTML=setl.ids.map(function(id,i){var x=byId(id);if(!x)return"";
@@ -221,17 +239,22 @@ function renderChips(){
  var w=$("work");
  w.innerHTML=cur.blocks.length?cur.blocks.map(chip).join(""):'<span class="empty">위 버튼을 눌러 곡의 진행을 만들어보세요</span>';
  if(sel>=0&&w.children[sel]&&!view)w.children[sel].classList.add("sel");
+ if(playing&&view&&pIdx>=0&&w.children[pIdx])w.children[pIdx].classList.add("now");
 }
 function renderPanel(){
  var on=sel>=0&&!view;
  $("tools").classList.toggle("show",on);$("subPanel").classList.toggle("show",on);
  if(!on){$("subPanel").innerHTML="";return}
- var b=cur.blocks[sel],subs=b.subs||[];
- $("subPanel").innerHTML='<p class="lbl">"'+esc(b.label)+'" 안에 포함할 항목 (눌러서 켜고 끄기)</p><div class="pal">'+
+ var b=cur.blocks[sel],subs=b.subs||[],base=b.label.replace(/[1-4]$/,""),nh="";
+ if(["벌스","프리코러스","코러스"].indexOf(base)>=0){
+  nh='<p class="lbl">번호 (다시 누르면 해제)</p><div class="numsel">'+[1,2,3,4].map(function(n){return '<span class="chip g'+gOf(base)+(b.label===base+n?' on':'')+'" data-n="'+n+'">'+n+'</span>'}).join("")+'</div>';
+ }
+ $("subPanel").innerHTML=nh+'<p class="lbl">"'+esc(b.label)+'" 안에 포함할 항목 (눌러서 켜고 끄기)</p><div class="pal">'+
   PAL.map(function(p){return '<span class="chip g'+p[1]+(subs.indexOf(p[0])>=0?' on':'')+'" data-s="'+p[0]+'">'+(subs.indexOf(p[0])>=0?'✓ ':'')+p[0]+'</span>'}).join("")+
   '</div><input type="text" id="memoIn" placeholder="메모 (선택) 예: x2, 여리게, 리프" value="'+esc(b.note||"")+'">';
 }
 function renderWork(){renderChips();renderPanel()}
+var playing=false,pIdx=-1;
 function renderAll(){
  $("title").value=cur.title;
  renderSongs();renderWork();
@@ -240,34 +263,19 @@ function renderAll(){
  $("title").disabled=view;
  $("modeBtn").textContent=view?"✏️ 편집 모드":"👁 보기 모드";
  $("workLbl").textContent=view?"진행 순서":"작업박스 (끌어서 순서 변경 / 탭하면 선택)";
+ updatePlayUI();
 }
 function add(label){cur.blocks.push({id:uid(),label:label,note:"",subs:[]});sel=cur.blocks.length-1;renderWork()}
 
 $("pal").innerHTML=PAL.map(function(p){return '<span class="chip g'+p[1]+'" data-l="'+p[0]+'">'+p[0]+'</span>'}).join("");
-var NUMS=["벌스","프리코러스","코러스","브릿지"],pending=null;
-function closeNum(){
- var r=$("pal").querySelector(".numrow");if(r)r.remove();
- pending=null;$("pal").querySelectorAll(".pend").forEach(function(x){x.classList.remove("pend")});
-}
-$("pal").onclick=function(e){
- var n=e.target.getAttribute("data-n");
- if(n&&pending){var l0=pending;closeNum();add(l0+n);return}
- var c=e.target.closest("[data-l]");if(!c)return;
- var l=c.getAttribute("data-l");
- if(NUMS.indexOf(l)>=0){
-  var was=(pending===l);closeNum();if(was){add(l);return}
-  pending=l;c.classList.add("pend");
-  var d=document.createElement("div");d.className="numrow";
-  d.innerHTML=[1,2,3,4].map(function(i){return '<span class="chip g'+gOf(l)+'" data-n="'+i+'">'+i+'</span>'}).join("");
-  c.after(d);
- }else{closeNum();add(l)}
-};
+$("pal").onclick=function(e){var c=e.target.closest("[data-l]");if(c)add(c.getAttribute("data-l"))};
 $("addCustom").onclick=function(){var v=$("custom").value.trim();if(v){add(v);$("custom").value=""}};
 $("custom").onkeydown=function(e){if(e.key==="Enter")$("addCustom").click()};
 $("title").oninput=function(){cur.title=this.value};
 
 $("work").onclick=function(e){
- var c=e.target.closest(".chip");if(!c||view)return;
+ var c=e.target.closest(".chip");if(!c)return;
+ if(view){if(playing){pIdx=+c.getAttribute("data-i");renderChips();scrollNow()}return}
  var i=+c.getAttribute("data-i");sel=(sel===i)?-1:i;renderWork();
 };
 $("work").ondragstart=function(e){var c=e.target.closest(".chip");if(c){dragI=+c.getAttribute("data-i");try{e.dataTransfer.setData("text","x")}catch(x){}}};
@@ -287,6 +295,8 @@ $("tools").onclick=function(e){
  renderWork();
 };
 $("subPanel").onclick=function(e){
+ var n=e.target.getAttribute("data-n");
+ if(n&&sel>=0){var bb=cur.blocks[sel],base=bb.label.replace(/[1-4]$/,"");bb.label=(bb.label===base+n)?base:base+n;renderChips();renderPanel();return}
  var l=e.target.getAttribute("data-s");if(!l||sel<0)return;
  var b=cur.blocks[sel];b.subs=b.subs||[];var i=b.subs.indexOf(l);
  if(i>=0)b.subs.splice(i,1);else b.subs.push(l);
@@ -337,6 +347,66 @@ $("setName").oninput=function(){setl.name=this.value;persistSet()};
 $("setClear").onclick=function(){if(setl.ids.length&&confirm("이번 주 콘티를 비울까요? (보관함의 곡은 그대로 남아요)")){setl.ids=[];persistSet();renderSongs()}};
 $("setPlay").onclick=function(){if(!setl.ids.length){alert("이번 주 콘티에 곡을 먼저 담아주세요");return}setSetMode(true)};
 $("backBtn").onclick=function(){setSetMode(false)};
+function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2200)}
+function navList(){return(cur&&setl.ids.indexOf(cur.id)>=0)?setl.ids:songs.map(function(x){return x.id})}
+function updatePlayUI(){
+ if(!view){playing=false;pIdx=-1}
+ var show=view&&!setMode;
+ $("viewBar").style.display=show?"block":"none";
+ $("playBar").style.display=show?"flex":"none";
+ document.body.classList.toggle("hasPlay",show);
+ $("playBtn").style.display=playing?"none":"";
+ ["stepPrev","stepNext","stopBtn"].forEach(function(id){$(id).style.display=playing?"":"none"});
+ $("work").classList.toggle("playing",playing&&view);
+ var L=navList(),i=L.indexOf(cur.id);
+ $("songPos").textContent=i>=0?(i+1)+" / "+L.length+(setl.ids.indexOf(cur.id)>=0?" · 이번 주":""):"";
+ $("prevSong").disabled=i<=0;$("nextSong").disabled=i<0||i>=L.length-1;
+}
+function scrollNow(){var el=$("work").querySelector(".chip.now");if(el)el.scrollIntoView({block:"center",behavior:"smooth"})}
+function loadCur(x,idx){cur=JSON.parse(JSON.stringify(x));sel=-1;pIdx=idx;renderAll();if(playing)scrollNow();else window.scrollTo(0,0)}
+function gotoSong(d){
+ var L=navList(),i=L.indexOf(cur.id),j=i+d;
+ if(i<0||j<0||j>=L.length)return;
+ var x=byId(L[j]);if(x)loadCur(x,playing?0:-1);
+}
+function startPlay(){
+ if(!cur.blocks.length){toast("작업박스에 박스가 없어요");return}
+ playing=true;pIdx=0;updatePlayUI();renderChips();scrollNow();
+}
+function stopPlay(){playing=false;pIdx=-1;updatePlayUI();renderChips()}
+function stepNext(){
+ if(!playing)return;
+ if(pIdx<cur.blocks.length-1){pIdx++;renderChips();scrollNow();return}
+ var L=navList(),i=L.indexOf(cur.id);
+ if(i>=0)for(var k=i+1;k<L.length;k++){var x=byId(L[k]);if(x&&x.blocks&&x.blocks.length){loadCur(x,0);return}}
+ stopPlay();toast("마지막 곡의 끝이에요");
+}
+function stepPrev(){
+ if(!playing)return;
+ if(pIdx>0){pIdx--;renderChips();scrollNow();return}
+ var L=navList(),i=L.indexOf(cur.id);
+ if(i>=0)for(var k=i-1;k>=0;k--){var x=byId(L[k]);if(x&&x.blocks&&x.blocks.length){loadCur(x,x.blocks.length-1);return}}
+}
+$("prevSong").onclick=function(){gotoSong(-1)};
+$("nextSong").onclick=function(){gotoSong(1)};
+$("playBtn").onclick=startPlay;
+$("stepNext").onclick=stepNext;
+$("stepPrev").onclick=stepPrev;
+$("stopBtn").onclick=stopPlay;
+$("setStart").onclick=function(){
+ var id=setl.ids.find(function(x){var y=byId(x);return y&&y.blocks.length});
+ if(!id){toast("박스가 있는 곡이 없어요");return}
+ setSetMode(false);cur=JSON.parse(JSON.stringify(byId(id)));sel=-1;view=true;playing=true;pIdx=0;
+ renderAll();
+ if(window.matchMedia("(max-width:700px)").matches)setTab("edit");
+ window.scrollTo(0,0);
+};
+document.addEventListener("keydown",function(e){
+ if(!playing||!view)return;
+ var t=document.activeElement&&document.activeElement.tagName;if(t==="INPUT"||t==="TEXTAREA")return;
+ if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();stepNext()}
+ else if(e.key==="ArrowLeft"){e.preventDefault();stepPrev()}
+});
 $("modeBtn").onclick=function(){view=!view;sel=-1;renderAll()};
 
 setTab("arch");load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
