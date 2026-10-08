@@ -55,8 +55,10 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 .numrow{flex-basis:100%;display:flex;gap:6px;align-items:center;padding:2px 0 4px 8px}
 .numrow .chip{padding:6px 18px}
 .pal .chip.pend{border-color:currentColor}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
-@media (max-width:700px){.grid{grid-template-columns:1fr}}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.grid>.card,#editor,#setView{min-width:0;max-width:100%}
+.card{min-width:0}
+@media (max-width:700px){.grid{grid-template-columns:minmax(0,1fr)}}
 .list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
 .item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
 .item.on{border-color:var(--ac)}
@@ -75,6 +77,8 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 .msg{font-size:13px;color:var(--mut);align-self:center}
 #tabs{display:none}
 @media (max-width:700px){
+ .app,.card,#editor,#main,#setView{width:100%;max-width:100%}
+ .card{padding:12px}
  .app{padding:10px}
  h1{font-size:18px}
  #tabs{display:flex;gap:6px;position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);padding:6px 0 10px}
