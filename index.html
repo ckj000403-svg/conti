@@ -15,7 +15,7 @@ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:en
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;font-size:16px}
-.app{max-width:900px;margin:0 auto;padding:14px}
+.app{max-width:1100px;margin:0 auto;padding:14px}
 header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
 h1{font-size:20px;margin:0}
 button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 12px}
@@ -66,20 +66,43 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 .view .chip{font-size:22px;padding:14px 22px;border-radius:16px}
 .view .work{border:none;padding:0;gap:12px}
 .msg{font-size:13px;color:var(--mut);align-self:center}
+#tabs{display:none}
+@media (max-width:700px){
+ .app{padding:10px}
+ h1{font-size:18px}
+ #tabs{display:flex;gap:6px;position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);padding:6px 0 10px}
+ #tabs button{flex:1;padding:10px 4px;font-weight:600;font-size:15px}
+ #tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+ body[data-tab="arch"] #setCard,body[data-tab="arch"] #editor{display:none}
+ body[data-tab="set"] #archCard,body[data-tab="set"] #editor{display:none}
+ body[data-tab="edit"] #archCard,body[data-tab="edit"] #setCard{display:none}
+ button{min-height:44px}
+ .list{max-height:none}
+ .item{padding:10px}
+ .item button{padding:8px 16px;min-height:42px}
+ .pal .chip{padding:11px 16px}
+ .numrow .chip{padding:10px 22px}
+ .work .chip{padding:10px 14px}
+ .subpanel .pal .chip{padding:9px 14px}
+ input[type=text]{padding:12px;font-size:16px}
+ #saveRow{position:sticky;bottom:0;z-index:5;background:var(--bg);padding:10px 0 6px;margin:0 -2px;border-top:1px solid var(--bd)}
+ .view .chip{font-size:20px}
+}
 </style>
 </head>
-<body>
+<body data-tab="arch">
 <div class="app">
 <header><h1>🎼 예배 콘티</h1><div class="row"><button id="modeBtn">👁 보기 모드</button></div></header>
 
+<div id="tabs"><button data-tab="arch">📚 보관함</button><button data-tab="set">📋 이번 주 <span id="cnt"></span></button><button data-tab="edit">✏️ 편집</button></div>
 <div id="main" class="grid">
-<div class="card">
+<div class="card" id="archCard">
 <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b>📚 보관함</b><button id="newSong" class="pri">＋ 새 곡</button></div>
 <input type="text" id="q" placeholder="곡 검색" style="width:100%;margin-bottom:8px">
 <div class="list" id="arch"></div>
 <p class="lbl" style="margin:8px 0 0">＋ 를 누르면 오른쪽 이번 주 콘티에 추가돼요</p>
 </div>
-<div class="card">
+<div class="card" id="setCard">
 <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b>📋 이번 주 콘티</b><div class="row"><button id="setPlay">▶ 전체 보기</button><button id="setClear" class="dng">비우기</button></div></div>
 <input type="text" id="setName" placeholder="예배 이름/날짜 (예: 10/12 주일예배)" style="width:100%;margin-bottom:8px">
 <div class="list" id="setList"></div>
@@ -160,12 +183,15 @@ function renderSet(){
  }).join("");
  $("setList").innerHTML=h||'<span class="empty">왼쪽 보관함에서 곡을 골라 담아보세요</span>';
 }
-function renderSongs(){renderArchive();renderSet()}
-function openSong(id){var x=byId(id);if(!x)return;sel=-1;cur=JSON.parse(JSON.stringify(x));renderAll();$("editor").scrollIntoView({behavior:"smooth",block:"start"})}
+function renderSongs(){renderArchive();renderSet();$("cnt").textContent=setl.ids.length?"("+setl.ids.length+")":""}
+function setTab(t){document.body.setAttribute("data-tab",t);document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-tab")===t)})}
+function focusEditor(){if(window.matchMedia("(max-width:700px)").matches){setTab("edit");window.scrollTo(0,0)}else $("editor").scrollIntoView({behavior:"smooth",block:"start"})}
+$("tabs").onclick=function(e){var b=e.target.closest("button");if(b){setTab(b.getAttribute("data-tab"));window.scrollTo(0,0)}};
+function openSong(id){var x=byId(id);if(!x)return;sel=-1;cur=JSON.parse(JSON.stringify(x));renderAll();focusEditor()}
 function chipRO(b,i){return chip(b,i).replace('draggable="true"','draggable="false"')}
 function setSetMode(on){
  setMode=on;$("main").style.display=on?"none":"";$("editor").style.display=on?"none":"";
- $("setView").style.display=on?"block":"none";$("modeBtn").style.display=on?"none":"";
+ $("setView").style.display=on?"block":"none";$("modeBtn").style.display=on?"none":"";$("tabs").style.display=on?"none":"";
  document.body.classList.toggle("view",on||view);
  if(on){
   $("setTitle").textContent=setl.name||"이번 주 콘티";
@@ -207,7 +233,7 @@ function renderAll(){
 function add(label){cur.blocks.push({id:uid(),label:label,note:"",subs:[]});sel=cur.blocks.length-1;renderWork()}
 
 $("pal").innerHTML=PAL.map(function(p){return '<span class="chip g'+p[1]+'" data-l="'+p[0]+'">'+p[0]+'</span>'}).join("");
-var NUMS=["벌스","프리코러스","브릿지"],pending=null;
+var NUMS=["벌스","프리코러스","코러스","브릿지"],pending=null;
 function closeNum(){
  var r=$("pal").querySelector(".numrow");if(r)r.remove();
  pending=null;$("pal").querySelectorAll(".pend").forEach(function(x){x.classList.remove("pend")});
@@ -273,7 +299,7 @@ $("delSong").onclick=function(){
  if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){var did=cur.id;songs.splice(i,1);persist();setl.ids=setl.ids.filter(function(x){return x!==did});persistSet();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
 };
 $("q").oninput=function(){q=this.value;renderArchive()};
-$("newSong").onclick=function(){cur=blank();sel=-1;view=false;renderAll();$("editor").scrollIntoView({behavior:"smooth",block:"start"})};
+$("newSong").onclick=function(){cur=blank();sel=-1;view=false;renderAll();focusEditor()};
 $("arch").onclick=function(e){
  var t=e.target.getAttribute("data-tog");
  if(t){var i=setl.ids.indexOf(t);if(i>=0)setl.ids.splice(i,1);else setl.ids.push(t);persistSet();renderSongs();return}
@@ -302,7 +328,7 @@ $("setPlay").onclick=function(){if(!setl.ids.length){alert("이번 주 콘티에
 $("backBtn").onclick=function(){setSetMode(false)};
 $("modeBtn").onclick=function(){view=!view;sel=-1;renderAll()};
 
-load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
+setTab("arch");load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
 </script>
 </body>
 </html>
