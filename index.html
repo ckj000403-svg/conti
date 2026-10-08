@@ -45,6 +45,9 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 .subpanel .pal .chip{padding:6px 12px;opacity:.55}
 .subpanel .pal .chip.on{opacity:1;border-color:currentColor}
 .subpanel input{width:100%;margin-top:10px}
+.numrow{flex-basis:100%;display:flex;gap:6px;align-items:center;padding:2px 0 4px 8px}
+.numrow .chip{padding:6px 18px}
+.pal .chip.pend{border-color:currentColor}
 .empty{color:var(--mut);align-self:center;margin:auto}
 .tools{display:none;gap:6px;flex-wrap:wrap;margin-top:10px}
 .tools.show{display:flex}
@@ -114,7 +117,7 @@ function renderSongs(){
  var h=songs.map(function(s){return '<button data-id="'+s.id+'" class="'+(cur&&cur.id===s.id?"on":"")+'">'+esc(s.title||"(제목 없음)")+'</button>'}).join("");
  h+='<button data-new="1">＋ 새 곡</button>';$("songs").innerHTML=h;
 }
-function gOf(l){return GROUP[l]===undefined?0:GROUP[l]}
+function gOf(l){var k=String(l).replace(/[1-4]$/,"");return GROUP[l]!==undefined?GROUP[l]:(GROUP[k]!==undefined?GROUP[k]:0)}
 function chip(b,i){
  var subs=(b.subs||[]).map(function(l){return '<span class="sub g'+gOf(l)+'">'+esc(l)+'</span>'}).join("");
  return '<div class="chip g'+gOf(b.label)+'" draggable="'+(!view)+'" data-i="'+i+'"><span class="num">'+(i+1)+'</span>'+esc(b.label)+subs+(b.note?' <small>'+esc(b.note)+'</small>':'')+'</div>';
@@ -146,7 +149,24 @@ function renderAll(){
 function add(label){cur.blocks.push({id:uid(),label:label,note:"",subs:[]});sel=cur.blocks.length-1;renderWork()}
 
 $("pal").innerHTML=PAL.map(function(p){return '<span class="chip g'+p[1]+'" data-l="'+p[0]+'">'+p[0]+'</span>'}).join("");
-$("pal").onclick=function(e){var l=e.target.getAttribute("data-l");if(l)add(l)};
+var NUMS=["벌스","프리코러스","브릿지"],pending=null;
+function closeNum(){
+ var r=$("pal").querySelector(".numrow");if(r)r.remove();
+ pending=null;$("pal").querySelectorAll(".pend").forEach(function(x){x.classList.remove("pend")});
+}
+$("pal").onclick=function(e){
+ var n=e.target.getAttribute("data-n");
+ if(n&&pending){var l0=pending;closeNum();add(l0+n);return}
+ var c=e.target.closest("[data-l]");if(!c)return;
+ var l=c.getAttribute("data-l");
+ if(NUMS.indexOf(l)>=0){
+  var was=(pending===l);closeNum();if(was)return;
+  pending=l;c.classList.add("pend");
+  var d=document.createElement("div");d.className="numrow";
+  d.innerHTML=[1,2,3,4].map(function(i){return '<span class="chip g'+gOf(l)+'" data-n="'+i+'">'+i+'</span>'}).join("");
+  c.after(d);
+ }else{closeNum();add(l)}
+};
 $("addCustom").onclick=function(){var v=$("custom").value.trim();if(v){add(v);$("custom").value=""}};
 $("custom").onkeydown=function(e){if(e.key==="Enter")$("addCustom").click()};
 $("title").oninput=function(){cur.title=this.value};
