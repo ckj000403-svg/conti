@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>예배 콘티</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#76736b;--bd:#dedbd2;--ac:#2f5bd6;
+--c1:#ffdcdc;--t1:#b3261e;--c2:#dbe7ff;--t2:#1d3f9e;--c3:#d9f2e0;--t3:#1b6a3a;--c0:#ece9e0;--t0:#4a473f;--c4:#ffe6cf;--t4:#8a4a10;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--card:#222226;--tx:#efeee9;--mut:#9a978e;--bd:#38383d;--ac:#7d9bff;
+--c1:#5c2424;--t1:#ffbdb8;--c2:#243562;--t2:#b9ccff;--c3:#1f4630;--t3:#b4ebc6;--c0:#33332f;--t0:#d8d5cb;--c4:#5a3a1c;--t4:#ffd2a8}}
+:root[data-theme="dark"]{--bg:#17171a;--card:#222226;--tx:#efeee9;--mut:#9a978e;--bd:#38383d;--ac:#7d9bff;
+--c1:#5c2424;--t1:#ffbdb8;--c2:#243562;--t2:#b9ccff;--c3:#1f4630;--t3:#b4ebc6;--c0:#33332f;--t0:#d8d5cb;--c4:#5a3a1c;--t4:#ffd2a8}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;font-size:16px}
+.app{max-width:900px;margin:0 auto;padding:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+h1{font-size:20px;margin:0}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 12px}
+button.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+button.dng{color:#c62828}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.songs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.songs button{white-space:nowrap}
+.songs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;min-width:0}
+#title{flex:1 1 200px;font-size:18px;font-weight:600}
+#key{width:90px}
+.lbl{font-size:13px;color:var(--mut);margin:0 0 8px}
+.pal{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:8px 14px;border:2px solid transparent;font-weight:600;user-select:none}
+.g0{background:var(--c0);color:var(--t0)}.g1{background:var(--c1);color:var(--t1)}.g2{background:var(--c2);color:var(--t2)}.g3{background:var(--c3);color:var(--t3)}.g4{background:var(--c4);color:var(--t4)}
+.pal .chip{cursor:pointer}
+.work{min-height:110px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;border:2px dashed var(--bd);border-radius:12px;padding:10px}
+.work .chip{cursor:grab;border-radius:12px}
+.work .chip.sel{border-color:var(--ac)}
+.work .chip small{font-weight:400;opacity:.85}
+.chip{flex-wrap:wrap;max-width:100%}
+.chip .sub{background:var(--card);border-radius:8px;padding:2px 9px;font-size:.78em;font-weight:600}
+.subpanel{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}
+.subpanel.show{display:block}
+.subpanel .pal .chip{padding:6px 12px;opacity:.55}
+.subpanel .pal .chip.on{opacity:1;border-color:currentColor}
+.subpanel input{width:100%;margin-top:10px}
+.empty{color:var(--mut);align-self:center;margin:auto}
+.tools{display:none;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tools.show{display:flex}
+.num{font-size:12px;opacity:.7}
+.view .chip{font-size:22px;padding:14px 22px;border-radius:16px}
+.view .work{border:none;padding:0;gap:12px}
+.msg{font-size:13px;color:var(--mut);align-self:center}
+</style>
+</head>
+<body>
+<div class="app">
+<header><h1>🎼 예배 콘티</h1><div class="row"><button id="modeBtn">👁 보기 모드</button></div></header>
+
+<div class="card"><div class="songs" id="songs"></div></div>
+
+<div id="editor">
+<div class="card">
+<div class="row">
+<input type="text" id="title" placeholder="1. 곡 제목 입력">
+<input type="text" id="key" placeholder="키 (예: G)">
+</div>
+</div>
+
+<div class="card" id="palCard">
+<p class="lbl">2. 버튼을 누르면 아래 작업박스에 추가돼요</p>
+<div class="pal" id="pal"></div>
+<div class="row" style="margin-top:10px">
+<input type="text" id="custom" placeholder="직접 입력 (예: 탬버린)" style="flex:1 1 160px">
+<button id="addCustom">+ 추가</button>
+</div>
+</div>
+
+<div class="card">
+<p class="lbl" id="workLbl">작업박스 (끌어서 순서 변경 / 탭하면 선택)</p>
+<div class="work" id="work"></div>
+<div class="tools" id="tools">
+<button data-t="left">← 앞으로</button><button data-t="right">뒤로 →</button>
+<button data-t="dup">복제</button><button data-t="del" class="dng">삭제</button>
+</div>
+<div class="subpanel" id="subPanel"></div>
+</div>
+
+<div class="row" id="saveRow">
+<button class="pri" id="save">💾 3. 저장</button>
+<button id="clear">작업박스 비우기</button>
+<button class="dng" id="delSong">곡 삭제</button>
+<span class="msg" id="msg"></span>
+</div>
+</div>
+</div>
+
+<script>
+var PAL=[["인트로",1],["인터루드",1],["아웃트로",1],
+["건반",2],["신디",2],["기타",2],["베이스",2],["드럼",2],["보컬",2],
+["벌스",3],["프리코러스",3],["브릿지",3],["엔딩",3],["리프레이즈",3]];
+var GROUP={};PAL.forEach(function(p){GROUP[p[0]]=p[1]});
+var KEY="worship-conti-v1",songs=[],cur=null,sel=-1,view=false,dragI=-1;
+var $=function(id){return document.getElementById(id)};
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function load(){try{var r=localStorage.getItem(KEY);songs=r?JSON.parse(r):[]}catch(e){songs=[]}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(songs));return true}catch(e){return false}}
+function blank(){return{id:uid(),title:"",key:"",blocks:[],updated:0}}
+function flash(t){$("msg").textContent=t;setTimeout(function(){$("msg").textContent=""},2000)}
+
+function renderSongs(){
+ var h=songs.map(function(s){return '<button data-id="'+s.id+'" class="'+(cur&&cur.id===s.id?"on":"")+'">'+esc(s.title||"(제목 없음)")+'</button>'}).join("");
+ h+='<button data-new="1">＋ 새 곡</button>';$("songs").innerHTML=h;
+}
+function gOf(l){return GROUP[l]===undefined?0:GROUP[l]}
+function chip(b,i){
+ var subs=(b.subs||[]).map(function(l){return '<span class="sub g'+gOf(l)+'">'+esc(l)+'</span>'}).join("");
+ return '<div class="chip g'+gOf(b.label)+'" draggable="'+(!view)+'" data-i="'+i+'"><span class="num">'+(i+1)+'</span>'+esc(b.label)+subs+(b.note?' <small>'+esc(b.note)+'</small>':'')+'</div>';
+}
+function renderChips(){
+ var w=$("work");
+ w.innerHTML=cur.blocks.length?cur.blocks.map(chip).join(""):'<span class="empty">위 버튼을 눌러 곡의 진행을 만들어보세요</span>';
+ if(sel>=0&&w.children[sel]&&!view)w.children[sel].classList.add("sel");
+}
+function renderPanel(){
+ var on=sel>=0&&!view;
+ $("tools").classList.toggle("show",on);$("subPanel").classList.toggle("show",on);
+ if(!on){$("subPanel").innerHTML="";return}
+ var b=cur.blocks[sel],subs=b.subs||[];
+ $("subPanel").innerHTML='<p class="lbl">"'+esc(b.label)+'" 안에 포함할 항목 (눌러서 켜고 끄기)</p><div class="pal">'+
+  PAL.map(function(p){return '<span class="chip g'+p[1]+(subs.indexOf(p[0])>=0?' on':'')+'" data-s="'+p[0]+'">'+(subs.indexOf(p[0])>=0?'✓ ':'')+p[0]+'</span>'}).join("")+
+  '</div><input type="text" id="memoIn" placeholder="메모 (선택) 예: x2, 여리게, 리프" value="'+esc(b.note||"")+'">';
+}
+function renderWork(){renderChips();renderPanel()}
+function renderAll(){
+ $("title").value=cur.title;$("key").value=cur.key;
+ renderSongs();renderWork();
+ document.body.classList.toggle("view",view);
+ $("palCard").style.display=view?"none":"";$("saveRow").style.display=view?"none":"";
+ $("title").disabled=view;$("key").disabled=view;
+ $("modeBtn").textContent=view?"✏️ 편집 모드":"👁 보기 모드";
+ $("workLbl").textContent=view?"진행 순서":"작업박스 (끌어서 순서 변경 / 탭하면 선택)";
+}
+function add(label){cur.blocks.push({id:uid(),label:label,note:"",subs:[]});sel=cur.blocks.length-1;renderWork()}
+
+$("pal").innerHTML=PAL.map(function(p){return '<span class="chip g'+p[1]+'" data-l="'+p[0]+'">'+p[0]+'</span>'}).join("");
+$("pal").onclick=function(e){var l=e.target.getAttribute("data-l");if(l)add(l)};
+$("addCustom").onclick=function(){var v=$("custom").value.trim();if(v){add(v);$("custom").value=""}};
+$("custom").onkeydown=function(e){if(e.key==="Enter")$("addCustom").click()};
+$("title").oninput=function(){cur.title=this.value};
+$("key").oninput=function(){cur.key=this.value};
+
+$("work").onclick=function(e){
+ var c=e.target.closest(".chip");if(!c||view)return;
+ var i=+c.getAttribute("data-i");sel=(sel===i)?-1:i;renderWork();
+};
+$("work").ondragstart=function(e){var c=e.target.closest(".chip");if(c){dragI=+c.getAttribute("data-i");try{e.dataTransfer.setData("text","x")}catch(x){}}};
+$("work").ondragover=function(e){e.preventDefault()};
+$("work").ondrop=function(e){
+ e.preventDefault();var c=e.target.closest(".chip");if(dragI<0)return;
+ var to=c?+c.getAttribute("data-i"):cur.blocks.length-1;
+ var it=cur.blocks.splice(dragI,1)[0];cur.blocks.splice(to,0,it);sel=to;dragI=-1;renderWork();
+};
+$("tools").onclick=function(e){
+ var t=e.target.getAttribute("data-t");if(!t||sel<0)return;var b=cur.blocks;
+ if(t==="left"&&sel>0){var x=b[sel];b[sel]=b[sel-1];b[sel-1]=x;sel--}
+ else if(t==="right"&&sel<b.length-1){var y=b[sel];b[sel]=b[sel+1];b[sel+1]=y;sel++}
+ else if(t==="dup"){b.splice(sel+1,0,{id:uid(),label:b[sel].label,note:b[sel].note,subs:(b[sel].subs||[]).slice()});sel++}
+ else if(t==="del"){b.splice(sel,1);sel=-1}
+
+ renderWork();
+};
+$("subPanel").onclick=function(e){
+ var l=e.target.getAttribute("data-s");if(!l||sel<0)return;
+ var b=cur.blocks[sel];b.subs=b.subs||[];var i=b.subs.indexOf(l);
+ if(i>=0)b.subs.splice(i,1);else b.subs.push(l);
+ renderChips();renderPanel();
+};
+$("subPanel").oninput=function(e){
+ if(e.target.id==="memoIn"&&sel>=0){cur.blocks[sel].note=e.target.value;renderChips()}
+};
+$("clear").onclick=function(){if(cur.blocks.length&&confirm("작업박스를 비울까요?")){cur.blocks=[];sel=-1;renderWork()}};
+$("save").onclick=function(){
+ if(!cur.title.trim()){flash("곡 제목을 입력해주세요");$("title").focus();return}
+ cur.updated=Date.now();
+ var i=songs.findIndex(function(s){return s.id===cur.id});
+ var copy=JSON.parse(JSON.stringify(cur));
+ if(i>=0)songs[i]=copy;else songs.push(copy);
+ flash(persist()?"저장됨 ✓":"저장 실패 (브라우저 저장소 사용 불가)");renderSongs();
+};
+$("delSong").onclick=function(){
+ var i=songs.findIndex(function(s){return s.id===cur.id});
+ if(i<0){cur=blank();sel=-1;renderAll();return}
+ if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){songs.splice(i,1);persist();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
+};
+$("songs").onclick=function(e){
+ var b=e.target.closest("button");if(!b)return;sel=-1;
+ if(b.getAttribute("data-new")){cur=blank();view=false}
+ else{var s=songs.find(function(x){return x.id===b.getAttribute("data-id")});if(s)cur=JSON.parse(JSON.stringify(s))}
+ renderAll();
+};
+$("modeBtn").onclick=function(){view=!view;sel=-1;renderAll()};
+
+load();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
+</script>
+</body>
+</html>
