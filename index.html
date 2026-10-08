@@ -49,6 +49,17 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 .numrow{flex-basis:100%;display:flex;gap:6px;align-items:center;padding:2px 0 4px 8px}
 .numrow .chip{padding:6px 18px}
 .pal .chip.pend{border-color:currentColor}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+.list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
+.item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
+.item.on{border-color:var(--ac)}
+.item .tt{flex:1;min-width:0;cursor:pointer}
+.item .tt b,.item .tt small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .tt small{color:var(--mut);font-size:12px}
+.item button{padding:4px 10px}
+.item button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.item .num{font-weight:700;color:var(--mut);min-width:18px}
 .empty{color:var(--mut);align-self:center;margin:auto}
 .tools{display:none;gap:6px;flex-wrap:wrap;margin-top:10px}
 .tools.show{display:flex}
@@ -62,7 +73,20 @@ input[type=text]{font:inherit;color:var(--tx);background:var(--bg);border:1px so
 <div class="app">
 <header><h1>🎼 예배 콘티</h1><div class="row"><button id="modeBtn">👁 보기 모드</button></div></header>
 
-<div class="card"><div class="songs" id="songs"></div></div>
+<div id="main" class="grid">
+<div class="card">
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b>📚 보관함</b><button id="newSong" class="pri">＋ 새 곡</button></div>
+<input type="text" id="q" placeholder="곡 검색" style="width:100%;margin-bottom:8px">
+<div class="list" id="arch"></div>
+<p class="lbl" style="margin:8px 0 0">＋ 를 누르면 오른쪽 이번 주 콘티에 추가돼요</p>
+</div>
+<div class="card">
+<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><b>📋 이번 주 콘티</b><div class="row"><button id="setPlay">▶ 전체 보기</button><button id="setClear" class="dng">비우기</button></div></div>
+<input type="text" id="setName" placeholder="예배 이름/날짜 (예: 10/12 주일예배)" style="width:100%;margin-bottom:8px">
+<div class="list" id="setList"></div>
+</div>
+</div>
+<div id="setView" style="display:none"><div class="row" style="margin-bottom:10px;align-items:center"><button id="backBtn">← 돌아가기</button><b id="setTitle"></b></div><div id="setBody"></div></div>
 
 <div id="editor">
 <div class="card">
@@ -114,10 +138,41 @@ function persist(){try{localStorage.setItem(KEY,JSON.stringify(songs));return tr
 function blank(){return{id:uid(),title:"",key:"",blocks:[],updated:0}}
 function flash(t){$("msg").textContent=t;setTimeout(function(){$("msg").textContent=""},2000)}
 
-function renderSongs(){
- var h='<button data-new="1" class="newbtn">＋ 새 곡</button>';
- h+=songs.map(function(s){return '<button data-id="'+s.id+'" class="'+(cur&&cur.id===s.id?"on":"")+'">'+esc(s.title||"(제목 없음)")+'</button>'}).join("");
- $("songs").innerHTML=h;$("songs").scrollLeft=0;
+var SKEY="worship-conti-set-v1",setl={name:"",ids:[]},q="",setMode=false,dragS=-1;
+function loadSet(){try{var r=localStorage.getItem(SKEY);if(r){var o=JSON.parse(r);if(o&&Array.isArray(o.ids))setl=o}}catch(e){}}
+function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(setl))}catch(e){}}
+function byId(id){return songs.find(function(s){return s.id===id})}
+function inSet(id){return setl.ids.indexOf(id)>=0}
+function prog(s){return (s.blocks||[]).map(function(b){return b.label}).join(" · ")}
+function ttl(s){return '<b>'+esc(s.title||"(제목 없음)")+(s.key?' <small style="display:inline">'+esc(s.key)+'</small>':'')+'</b><small>'+esc(prog(s))+'</small>'}
+function renderArchive(){
+ var ql=q.trim().toLowerCase();
+ var h=songs.filter(function(s){return !ql||(s.title||"").toLowerCase().indexOf(ql)>=0}).map(function(s){
+  var on=inSet(s.id);
+  return '<div class="item'+(cur&&cur.id===s.id?' on':'')+'"><div class="tt" data-open="'+s.id+'">'+ttl(s)+'</div><button data-tog="'+s.id+'" class="'+(on?'on':'')+'">'+(on?'✓':'＋')+'</button></div>';
+ }).join("");
+ $("arch").innerHTML=h||'<span class="empty">'+(songs.length?'검색 결과가 없어요':'저장한 곡이 여기에 쌓여요')+'</span>';
+}
+function renderSet(){
+ var h=setl.ids.map(function(id,i){var s=byId(id);if(!s)return"";
+  return '<div class="item" draggable="true" data-si="'+i+'"><span class="num">'+(i+1)+'</span><div class="tt" data-open="'+id+'">'+ttl(s)+'</div><button data-a="up" data-i="'+i+'">↑</button><button data-a="down" data-i="'+i+'">↓</button><button data-a="rm" data-i="'+i+'" class="dng">✕</button></div>';
+ }).join("");
+ $("setList").innerHTML=h||'<span class="empty">왼쪽 보관함에서 곡을 골라 담아보세요</span>';
+}
+function renderSongs(){renderArchive();renderSet()}
+function openSong(id){var x=byId(id);if(!x)return;sel=-1;cur=JSON.parse(JSON.stringify(x));renderAll();$("editor").scrollIntoView({behavior:"smooth",block:"start"})}
+function chipRO(b,i){return chip(b,i).replace('draggable="true"','draggable="false"')}
+function setSetMode(on){
+ setMode=on;$("main").style.display=on?"none":"";$("editor").style.display=on?"none":"";
+ $("setView").style.display=on?"block":"none";$("modeBtn").style.display=on?"none":"";
+ document.body.classList.toggle("view",on||view);
+ if(on){
+  $("setTitle").textContent=setl.name||"이번 주 콘티";
+  $("setBody").innerHTML=setl.ids.map(function(id,i){var x=byId(id);if(!x)return"";
+   return '<div class="card"><div style="font-size:20px;font-weight:700;margin-bottom:10px">'+(i+1)+'. '+esc(x.title||"")+(x.key?' <small style="color:var(--mut);font-weight:400">Key '+esc(x.key)+'</small>':'')+'</div><div class="work" style="min-height:0">'+x.blocks.map(chipRO).join("")+'</div></div>';
+  }).join("");
+  window.scrollTo(0,0);
+ }
 }
 function gOf(l){var k=String(l).replace(/[1-4]$/,"");return GROUP[l]!==undefined?GROUP[l]:(GROUP[k]!==undefined?GROUP[k]:0)}
 function chip(b,i){
@@ -215,17 +270,39 @@ $("save").onclick=function(){
 $("delSong").onclick=function(){
  var i=songs.findIndex(function(s){return s.id===cur.id});
  if(i<0){cur=blank();sel=-1;renderAll();return}
- if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){songs.splice(i,1);persist();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
+ if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){var did=cur.id;songs.splice(i,1);persist();setl.ids=setl.ids.filter(function(x){return x!==did});persistSet();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
 };
-$("songs").onclick=function(e){
- var b=e.target.closest("button");if(!b)return;sel=-1;
- if(b.getAttribute("data-new")){cur=blank();view=false}
- else{var s=songs.find(function(x){return x.id===b.getAttribute("data-id")});if(s)cur=JSON.parse(JSON.stringify(s))}
- renderAll();
+$("q").oninput=function(){q=this.value;renderArchive()};
+$("newSong").onclick=function(){cur=blank();sel=-1;view=false;renderAll();$("editor").scrollIntoView({behavior:"smooth",block:"start"})};
+$("arch").onclick=function(e){
+ var t=e.target.getAttribute("data-tog");
+ if(t){var i=setl.ids.indexOf(t);if(i>=0)setl.ids.splice(i,1);else setl.ids.push(t);persistSet();renderSongs();return}
+ var o=e.target.closest("[data-open]");if(o)openSong(o.getAttribute("data-open"));
 };
+$("setList").onclick=function(e){
+ var a=e.target.getAttribute("data-a"),i=+e.target.getAttribute("data-i"),L=setl.ids;
+ if(a){
+  if(a==="up"&&i>0){var x=L[i];L[i]=L[i-1];L[i-1]=x}
+  else if(a==="down"&&i<L.length-1){var y=L[i];L[i]=L[i+1];L[i+1]=y}
+  else if(a==="rm")L.splice(i,1);
+  persistSet();renderSongs();return;
+ }
+ var o=e.target.closest("[data-open]");if(o)openSong(o.getAttribute("data-open"));
+};
+$("setList").ondragstart=function(e){var it=e.target.closest("[data-si]");if(it){dragS=+it.getAttribute("data-si");try{e.dataTransfer.setData("text","x")}catch(x){}}};
+$("setList").ondragover=function(e){e.preventDefault()};
+$("setList").ondrop=function(e){
+ e.preventDefault();var it=e.target.closest("[data-si]");if(dragS<0)return;
+ var to=it?+it.getAttribute("data-si"):setl.ids.length-1;
+ var m=setl.ids.splice(dragS,1)[0];setl.ids.splice(to,0,m);dragS=-1;persistSet();renderSet();
+};
+$("setName").oninput=function(){setl.name=this.value;persistSet()};
+$("setClear").onclick=function(){if(setl.ids.length&&confirm("이번 주 콘티를 비울까요? (보관함의 곡은 그대로 남아요)")){setl.ids=[];persistSet();renderSongs()}};
+$("setPlay").onclick=function(){if(!setl.ids.length){alert("이번 주 콘티에 곡을 먼저 담아주세요");return}setSetMode(true)};
+$("backBtn").onclick=function(){setSetMode(false)};
 $("modeBtn").onclick=function(){view=!view;sel=-1;renderAll()};
 
-load();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
+load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
 </script>
 </body>
 </html>
