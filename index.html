@@ -140,6 +140,7 @@ body.hasPlay .app{padding-bottom:110px}
 <div class="card">
 <div class="row">
 <input type="text" id="title" placeholder="1. 곡 제목 입력">
+<button id="newSong2">＋ 새 곡</button>
 
 </div>
 </div>
@@ -197,9 +198,10 @@ function byId(id){return songs.find(function(s){return s.id===id})}
 function inSet(id){return setl.ids.indexOf(id)>=0}
 function prog(s){return (s.blocks||[]).map(function(b){return b.label}).join(" · ")}
 function ttl(s){return '<b>'+esc(s.title||"(제목 없음)")+'</b><small>'+esc(prog(s))+'</small>'}
+function nz(x){return String(x||"").toLowerCase().replace(/\s+/g,"")}
 function renderArchive(){
- var ql=q.trim().toLowerCase();
- var h=songs.filter(function(s){return !ql||(s.title||"").toLowerCase().indexOf(ql)>=0}).map(function(s){
+ var ql=nz(q);
+ var h=songs.filter(function(s){return !ql||nz(s.title).indexOf(ql)>=0}).map(function(s){
   var on=inSet(s.id);
   return '<div class="item'+(cur&&cur.id===s.id?' on':'')+'"><div class="tt" data-open="'+s.id+'">'+ttl(s)+'</div><button data-tog="'+s.id+'" class="'+(on?'on':'')+'">'+(on?'✓':'＋')+'</button></div>';
  }).join("");
@@ -211,11 +213,17 @@ function renderSet(){
  }).join("");
  $("setList").innerHTML=h||'<span class="empty">왼쪽 보관함에서 곡을 골라 담아보세요</span>';
 }
-function renderSongs(){renderArchive();renderSet();$("cnt").textContent=setl.ids.length?"("+setl.ids.length+")":""}
+function renderSongs(){renderArchive();renderSet();$("cnt").textContent=setl.ids.length?"("+setl.ids.length+")":"";updatePlayUI()}
 function setTab(t){document.body.setAttribute("data-tab",t);document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-tab")===t)})}
 function focusEditor(){if(window.matchMedia("(max-width:700px)").matches){setTab("edit");window.scrollTo(0,0)}else $("editor").scrollIntoView({behavior:"smooth",block:"start"})}
 $("tabs").onclick=function(e){var b=e.target.closest("button");if(b){setTab(b.getAttribute("data-tab"));window.scrollTo(0,0)}};
-function openSong(id){var x=byId(id);if(!x)return;sel=-1;cur=JSON.parse(JSON.stringify(x));renderAll();focusEditor()}
+function dirty(){
+ var sv=byId(cur.id);
+ if(!sv)return !!(cur.title.trim()||cur.blocks.length);
+ return JSON.stringify([cur.title,cur.blocks])!==JSON.stringify([sv.title,sv.blocks]);
+}
+function okLeave(){return !dirty()||confirm("저장하지 않은 변경이 있어요. 저장하지 않고 이동할까요?")}
+function openSong(id){var x=byId(id);if(!x)return;if(!okLeave())return;sel=-1;cur=JSON.parse(JSON.stringify(x));renderAll();focusEditor()}
 function chipRO(b,i){return chip(b,i).replace('draggable="true"','draggable="false"')}
 function setSetMode(on){
  setMode=on;$("main").style.display=on?"none":"";$("editor").style.display=on?"none":"";
@@ -260,12 +268,17 @@ function renderAll(){
  renderSongs();renderWork();
  document.body.classList.toggle("view",view);
  $("palCard").style.display=view?"none":"";$("saveRow").style.display=view?"none":"";
- $("title").disabled=view;
+ $("title").disabled=view;$("newSong2").style.display=view?"none":"";
  $("modeBtn").textContent=view?"✏️ 편집 모드":"👁 보기 모드";
  $("workLbl").textContent=view?"진행 순서":"작업박스 (끌어서 순서 변경 / 탭하면 선택)";
  updatePlayUI();
 }
-function add(label){cur.blocks.push({id:uid(),label:label,note:"",subs:[]});sel=cur.blocks.length-1;renderWork()}
+function add(label){
+ var nb={id:uid(),label:label,note:"",subs:[]};
+ if(sel>=0&&sel<cur.blocks.length){cur.blocks.splice(sel+1,0,nb);sel=sel+1}
+ else{cur.blocks.push(nb);sel=cur.blocks.length-1}
+ renderWork();
+}
 
 $("pal").innerHTML=PAL.map(function(p){return '<span class="chip g'+p[1]+'" data-l="'+p[0]+'">'+p[0]+'</span>'}).join("");
 $("pal").onclick=function(e){var c=e.target.closest("[data-l]");if(c)add(c.getAttribute("data-l"))};
@@ -320,7 +333,8 @@ $("delSong").onclick=function(){
  if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){var did=cur.id;songs.splice(i,1);persist();setl.ids=setl.ids.filter(function(x){return x!==did});persistSet();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
 };
 $("q").oninput=function(){q=this.value;renderArchive()};
-$("newSong").onclick=function(){cur=blank();sel=-1;view=false;renderAll();focusEditor()};
+function newSong(){if(!okLeave())return;cur=blank();sel=-1;view=false;renderAll();focusEditor()}
+$("newSong").onclick=newSong;$("newSong2").onclick=newSong;
 $("arch").onclick=function(e){
  var t=e.target.getAttribute("data-tog");
  if(t){var i=setl.ids.indexOf(t);if(i>=0)setl.ids.splice(i,1);else setl.ids.push(t);persistSet();renderSongs();return}
@@ -352,7 +366,7 @@ function navList(){return(cur&&setl.ids.indexOf(cur.id)>=0)?setl.ids:songs.map(f
 function updatePlayUI(){
  if(!view){playing=false;pIdx=-1}
  var show=view&&!setMode;
- $("viewBar").style.display=show?"block":"none";
+ $("viewBar").style.display=!setMode?"block":"none";
  $("playBar").style.display=show?"flex":"none";
  document.body.classList.toggle("hasPlay",show);
  $("playBtn").style.display=playing?"none":"";
@@ -367,6 +381,7 @@ function loadCur(x,idx){cur=JSON.parse(JSON.stringify(x));sel=-1;pIdx=idx;render
 function gotoSong(d){
  var L=navList(),i=L.indexOf(cur.id),j=i+d;
  if(i<0||j<0||j>=L.length)return;
+ if(!okLeave())return;
  var x=byId(L[j]);if(x)loadCur(x,playing?0:-1);
 }
 function startPlay(){
@@ -394,6 +409,7 @@ $("stepNext").onclick=stepNext;
 $("stepPrev").onclick=stepPrev;
 $("stopBtn").onclick=stopPlay;
 $("setStart").onclick=function(){
+ if(!okLeave())return;
  var id=setl.ids.find(function(x){var y=byId(x);return y&&y.blocks.length});
  if(!id){toast("박스가 있는 곡이 없어요");return}
  setSetMode(false);cur=JSON.parse(JSON.stringify(byId(id)));sel=-1;view=true;playing=true;pIdx=0;
