@@ -88,6 +88,10 @@ button:disabled{opacity:.4;cursor:default}
 #playBar .big{flex:1;max-width:520px}
 body.hasPlay .app{padding-bottom:110px}
 #toast{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:#222;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;z-index:30}
+#cloudBtn,#themeBtn{font-size:13px;padding:6px 10px;min-height:0}
+#themeBtn{font-size:16px}
+#cloudModal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:40;align-items:center;justify-content:center;padding:16px}
+.mbox{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:10px}
 #tabs{display:none}
 @media (max-width:700px){
  .app,.card,#editor,#main,#setView{width:100%;max-width:100%}
@@ -114,10 +118,11 @@ body.hasPlay .app{padding-bottom:110px}
 }
 @media (max-width:700px){.numsel .chip{padding:10px 20px}#playBar button{min-height:56px}}
 </style>
+<script>try{var __t=localStorage.getItem("worship-conti-theme");if(__t==="dark"||__t==="light")document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body data-tab="arch">
 <div class="app">
-<header><h1>🎼 예배 콘티</h1><div class="row"><button id="modeBtn">👁 보기 모드</button></div></header>
+<header><h1>🎼 예배 콘티</h1><div class="row"><button id="cloudBtn">☁ 팀 연결</button><button id="themeBtn" aria-label="다크 모드">🌙</button><button id="modeBtn">👁 보기 모드</button></div></header>
 
 <div id="tabs"><button data-tab="arch">📚 보관함</button><button data-tab="set">📋 이번 주 <span id="cnt"></span></button><button data-tab="edit">✏️ 편집</button></div>
 <div id="main" class="grid">
@@ -173,6 +178,22 @@ body.hasPlay .app{padding-bottom:110px}
 </div>
 </div>
 
+<div id="cloudModal"><div class="mbox">
+<b style="font-size:18px">☁ 팀 공유</b>
+<p id="cloudStat" class="lbl" style="margin:0"></p>
+<div id="cloudNo" style="display:flex;flex-direction:column;gap:8px">
+<input type="text" id="teamCode" placeholder="팀 코드 (영문·숫자 4자 이상)" autocapitalize="off" autocomplete="off">
+<button id="cloudConnect" class="pri">연결</button>
+</div>
+<div id="cloudYes" style="display:none;flex-direction:column;gap:8px">
+<div>팀 코드: <b id="teamShow"></b></div>
+<button id="cloudUp">📤 이 기기에 있던 곡 팀에 올리기</button>
+<button id="cloudOff" class="dng">연결 끊기</button>
+</div>
+<p id="cloudMsg" class="lbl" style="margin:0"></p>
+<button id="cloudClose">닫기</button>
+<p class="lbl" style="margin:0">팀 코드를 아는 사람은 누구나 곡을 보고 고칠 수 있어요. 믿을 만한 팀원에게만 알려주세요.</p>
+</div></div>
 <div id="playBar"><button id="playBtn" class="pri big">▶ 재생</button><button id="stepPrev" style="display:none">◀ 이전</button><button id="stepNext" class="pri big" style="display:none">다음 ▶</button><button id="stopBtn" style="display:none">■ 정지</button></div>
 <div id="toast"></div>
 <script>
@@ -193,7 +214,7 @@ function flash(t){$("msg").textContent=t;setTimeout(function(){$("msg").textCont
 
 var SKEY="worship-conti-set-v1",setl={name:"",ids:[]},q="",setMode=false,dragS=-1;
 function loadSet(){try{var r=localStorage.getItem(SKEY);if(r){var o=JSON.parse(r);if(o&&Array.isArray(o.ids))setl=o}}catch(e){}}
-function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(setl))}catch(e){}}
+function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(setl))}catch(e){}cloudSaveSetSoon()}
 function byId(id){return songs.find(function(s){return s.id===id})}
 function inSet(id){return setl.ids.indexOf(id)>=0}
 function prog(s){return (s.blocks||[]).map(function(b){return b.label}).join(" · ")}
@@ -208,12 +229,12 @@ function renderArchive(){
  $("arch").innerHTML=h||'<span class="empty">'+(songs.length?'검색 결과가 없어요':'저장한 곡이 여기에 쌓여요')+'</span>';
 }
 function renderSet(){
- var h=setl.ids.map(function(id,i){var s=byId(id);if(!s)return"";
-  return '<div class="item" draggable="true" data-si="'+i+'"><span class="num">'+(i+1)+'</span><div class="tt" data-open="'+id+'">'+ttl(s)+'</div><button data-a="up" data-i="'+i+'">↑</button><button data-a="down" data-i="'+i+'">↓</button><button data-a="rm" data-i="'+i+'" class="dng">✕</button></div>';
+ var k=0;var h=setl.ids.map(function(id,i){var s=byId(id);if(!s)return"";k++;
+  return '<div class="item" draggable="true" data-si="'+i+'"><span class="num">'+k+'</span><div class="tt" data-open="'+id+'">'+ttl(s)+'</div><button data-a="up" data-i="'+i+'">↑</button><button data-a="down" data-i="'+i+'">↓</button><button data-a="rm" data-i="'+i+'" class="dng">✕</button></div>';
  }).join("");
  $("setList").innerHTML=h||'<span class="empty">왼쪽 보관함에서 곡을 골라 담아보세요</span>';
 }
-function renderSongs(){renderArchive();renderSet();$("cnt").textContent=setl.ids.length?"("+setl.ids.length+")":"";updatePlayUI()}
+function renderSongs(){renderArchive();renderSet();var sc=setl.ids.filter(function(x){return !!byId(x)}).length;$("cnt").textContent=sc?"("+sc+")":"";updatePlayUI()}
 function setTab(t){document.body.setAttribute("data-tab",t);document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-tab")===t)})}
 function focusEditor(){if(window.matchMedia("(max-width:700px)").matches){setTab("edit");window.scrollTo(0,0)}else $("editor").scrollIntoView({behavior:"smooth",block:"start"})}
 $("tabs").onclick=function(e){var b=e.target.closest("button");if(b){setTab(b.getAttribute("data-tab"));window.scrollTo(0,0)}};
@@ -324,13 +345,15 @@ $("save").onclick=function(){
  cur.updated=Date.now();
  var i=songs.findIndex(function(s){return s.id===cur.id});
  var copy=JSON.parse(JSON.stringify(cur));
+ if(!copy.created)copy.created=(i>=0&&songs[i].created)||Date.now();cur.created=copy.created;
  if(i>=0)songs[i]=copy;else songs.push(copy);
+ cloudSaveSong(copy);
  flash(persist()?"저장됨 ✓":"저장 실패 (브라우저 저장소 사용 불가)");renderSongs();
 };
 $("delSong").onclick=function(){
  var i=songs.findIndex(function(s){return s.id===cur.id});
  if(i<0){cur=blank();sel=-1;renderAll();return}
- if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){var did=cur.id;songs.splice(i,1);persist();setl.ids=setl.ids.filter(function(x){return x!==did});persistSet();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
+ if(confirm("'"+(cur.title||"제목 없음")+"' 곡을 삭제할까요?")){var did=cur.id;songs.splice(i,1);persist();cloudDeleteSong(did);setl.ids=setl.ids.filter(function(x){return x!==did});persistSet();cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();sel=-1;renderAll()}
 };
 $("q").oninput=function(){q=this.value;renderArchive()};
 function newSong(){if(!okLeave())return;cur=blank();sel=-1;view=false;renderAll();focusEditor()}
@@ -362,7 +385,7 @@ $("setClear").onclick=function(){if(setl.ids.length&&confirm("이번 주 콘티�
 $("setPlay").onclick=function(){if(!setl.ids.length){alert("이번 주 콘티에 곡을 먼저 담아주세요");return}setSetMode(true)};
 $("backBtn").onclick=function(){setSetMode(false)};
 function toast(t){var e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display="none"},2200)}
-function navList(){return(cur&&setl.ids.indexOf(cur.id)>=0)?setl.ids:songs.map(function(x){return x.id})}
+function navList(){return(cur&&setl.ids.indexOf(cur.id)>=0)?setl.ids.filter(function(x){return !!byId(x)}):songs.map(function(x){return x.id})}
 function updatePlayUI(){
  if(!view){playing=false;pIdx=-1}
  var show=view&&!setMode;
@@ -425,7 +448,143 @@ document.addEventListener("keydown",function(e){
 });
 $("modeBtn").onclick=function(){view=!view;sel=-1;renderAll()};
 
-setTab("arch");load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();
+
+/* ===== Firebase 팀 공유 ===== */
+var CFG={apiKey:"AIzaSyBi-56Q_FgAID3WaZS0T6XMHEcWLUFxqaA",authDomain:"awc-conti.firebaseapp.com",projectId:"awc-conti",storageBucket:"awc-conti.firebasestorage.app",messagingSenderId:"116514734658",appId:"1:116514734658:web:df9eb27b145670c9b3e3db"};
+var TKEY="worship-conti-team-v1",BKEY="worship-conti-local-backup-v1",PKEY="worship-conti-pending-v1",CSKIP="worship-conti-cloudskip",FBV="10.12.2";
+var FB=null,team="",unS=null,unL=null,lastSig="",gotLive=false,setTimer=null,pend={};
+try{team=localStorage.getItem(TKEY)||""}catch(e){}
+try{pend=JSON.parse(localStorage.getItem(PKEY)||"{}")||{}}catch(e){pend={}}
+function savePend(){try{localStorage.setItem(PKEY,JSON.stringify(pend))}catch(e){}}
+var CT={off:["☁ 팀 연결","연결 안 됨 — 지금은 이 기기에만 저장돼요"],wait:["☁ 연결 중","연결 중이에요…"],live:["☁ 연결됨","실시간 동기화 중 ✓"],cache:["☁ 오프라인","오프라인이에요. 인터넷이 연결되면 자동으로 맞춰져요"],err:["☁ 오류","문제가 생겼어요"]};
+function cstat(st,msg){$("cloudBtn").textContent=CT[st][0];$("cloudStat").textContent=msg||CT[st][1]}
+function errMsg(e){var c=(e&&e.code)||"";if(c==="permission-denied")return"권한 오류: Firebase의 Firestore 규칙(Rules)을 확인해주세요";if(c==="unavailable")return CT.cache[1];return"오류: "+(c||(e&&e.message)||"알 수 없음")}
+function sigOf(x){return JSON.stringify([x.title,x.blocks])}
+function pack(x){return{title:x.title||"",blocks:JSON.parse(JSON.stringify(x.blocks||[])),created:x.created||Date.now(),updated:x.updated||Date.now()}}
+function initFB(){
+ if(FB)return Promise.resolve(FB);
+ var u="https://www.gstatic.com/firebasejs/"+FBV+"/";
+ return Promise.all([import(u+"firebase-app.js"),import(u+"firebase-firestore.js")]).then(function(m){
+  var a=m[0].initializeApp(CFG),f=m[1],db;
+  try{db=f.initializeFirestore(a,{localCache:f.persistentLocalCache({tabManager:f.persistentMultipleTabManager()})})}catch(e){db=f.getFirestore(a)}
+  FB={db:db,f:f};return FB;
+ });
+}
+function flushRemote(){
+ if(!team||!FB)return;var f=FB.f;
+ Object.keys(pend).forEach(function(id){
+  var ref=f.doc(FB.db,"teams",team,"songs",id),p;
+  if(pend[id]==="del")p=f.deleteDoc(ref);
+  else{var x=byId(id);if(!x){delete pend[id];return}p=f.setDoc(ref,pack(x))}
+  p.then(function(){delete pend[id];savePend()}).catch(function(e){cstat("err",errMsg(e))});
+ });
+ savePend();
+}
+function cloudSaveSong(x){if(!team)return;pend[x.id]="save";savePend();flushRemote()}
+function cloudDeleteSong(id){if(!team)return;pend[id]="del";savePend();flushRemote()}
+function cloudSaveSetSoon(){if(!team)return;clearTimeout(setTimer);setTimer=setTimeout(cloudSaveSet,600)}
+function cloudSaveSet(){
+ if(!team||!FB)return;var f=FB.f;
+ f.setDoc(f.doc(FB.db,"teams",team,"meta","setlist"),{name:setl.name||"",ids:setl.ids.slice(),updated:Date.now()}).catch(function(e){cstat("err",errMsg(e))});
+}
+function stopSync(){if(unS)unS();if(unL)unL();unS=unL=null;lastSig="";gotLive=false}
+function startSync(code){
+ stopSync();cstat("wait");var f=FB.f,db=FB.db;
+ flushRemote();
+ unS=f.onSnapshot(f.collection(db,"teams",code,"songs"),{includeMetadataChanges:true},function(snap){
+  cstat(snap.metadata.fromCache?"cache":"live");
+  if(!snap.metadata.fromCache)gotLive=true;
+  if(snap.metadata.fromCache&&snap.empty&&!gotLive)return;
+  var arr=snap.docs.map(function(d){var v=d.data();return{id:d.id,title:v.title||"",blocks:v.blocks||[],created:v.created||0,updated:v.updated||0}});
+  arr.sort(function(a,b){return(a.created-b.created)||(a.id<b.id?-1:1)});
+  var sig=JSON.stringify(arr.map(function(x){return[x.id,x.title,x.blocks,x.created]}));
+  if(sig===lastSig)return;
+  lastSig=sig;
+  var wasDirty=dirty(),old=byId(cur.id),oldSig=old?sigOf(old):"";
+  songs=arr;persist();
+  var n=byId(cur.id);
+  if(!wasDirty&&n&&old&&sigOf(n)!==oldSig){
+   cur=JSON.parse(JSON.stringify(n));sel=-1;if(pIdx>=cur.blocks.length)pIdx=cur.blocks.length-1;renderAll();
+  }else renderSongs();
+ },function(e){cstat("err",errMsg(e))});
+ unL=f.onSnapshot(f.doc(db,"teams",code,"meta","setlist"),function(d){
+  if(d.exists()){
+   var v=d.data(),ns={name:v.name||"",ids:Array.isArray(v.ids)?v.ids:[]};
+   if(JSON.stringify(ns)===JSON.stringify(setl))return;
+   setl=ns;try{localStorage.setItem(SKEY,JSON.stringify(setl))}catch(e){}
+   if(document.activeElement!==$("setName"))$("setName").value=setl.name;
+   renderSongs();
+  }else if(!d.metadata.fromCache&&(setl.ids.length||setl.name)){cloudSaveSet()}
+ },function(e){cstat("err",errMsg(e))});
+}
+function getBackup(){try{var a=JSON.parse(localStorage.getItem(BKEY)||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+function uploadSongs(list){
+ if(!team||!FB||!list.length)return Promise.resolve();
+ var f=FB.f,db=FB.db,base=Date.now()-list.length,i=0;
+ toast("올리는 중…");
+ function next(){
+  var chunk=list.slice(i,i+400);if(!chunk.length)return Promise.resolve();
+  var b=f.writeBatch(db);
+  chunk.forEach(function(x,k){var y=pack(x);if(!x.created)y.created=base+i+k;b.set(f.doc(db,"teams",team,"songs",x.id),y)});
+  i+=400;return b.commit().then(next);
+ }
+ return next().then(function(){toast("팀 보관함에 올렸어요 ✓")}).catch(function(e){cstat("err",errMsg(e))});
+}
+function openCloud(){refreshCloud();$("cloudModal").style.display="flex"}
+function closeCloud(){$("cloudModal").style.display="none";try{localStorage.setItem(CSKIP,"1")}catch(e){}}
+function refreshCloud(){
+ $("cloudNo").style.display=team?"none":"flex";$("cloudYes").style.display=team?"flex":"none";
+ $("teamShow").textContent=team;$("cloudMsg").textContent="";
+}
+function connect(code){
+ code=(code||"").trim();
+ if(!/^[A-Za-z0-9_-]{4,40}$/.test(code)){$("cloudMsg").textContent="영문, 숫자, -, _ 만 사용해서 4자 이상 입력해주세요";return}
+ $("cloudMsg").textContent="연결 중…";
+ initFB().then(function(){
+  try{if(!localStorage.getItem(BKEY)&&songs.length)localStorage.setItem(BKEY,JSON.stringify(songs))}catch(e){}
+  team=code;try{localStorage.setItem(TKEY,team)}catch(e){}
+  var OK="worship-conti-offered-"+code,offered=false;
+  try{offered=!!localStorage.getItem(OK)}catch(e){}
+  var bk=getBackup();
+  if(bk.length&&!offered){
+   if(confirm("이 기기에 저장된 곡 "+bk.length+"개를 팀 보관함에도 올릴까요?"))uploadSongs(bk);
+   try{localStorage.setItem(OK,"1")}catch(e){}
+  }
+  startSync(code);refreshCloud();closeCloud();
+ }).catch(function(){$("cloudMsg").textContent="Firebase를 불러오지 못했어요. 인터넷 연결을 확인해주세요"});
+}
+function bootCloud(){
+ if(team){cstat("wait");initFB().then(function(){startSync(team)}).catch(function(){cstat("cache","오프라인이거나 서버를 불러오지 못했어요")})}
+ else{cstat("off");var sk=false;try{sk=!!localStorage.getItem(CSKIP)}catch(e){}if(!sk)openCloud()}
+}
+$("cloudBtn").onclick=openCloud;
+$("cloudClose").onclick=closeCloud;
+$("cloudConnect").onclick=function(){connect($("teamCode").value)};
+$("teamCode").onkeydown=function(e){if(e.key==="Enter")connect(this.value)};
+$("cloudUp").onclick=function(){
+ var ex={};songs.forEach(function(x){ex[x.id]=1});
+ var todo=getBackup().filter(function(x){return !ex[x.id]});
+ if(!todo.length){toast("올릴 곡이 없어요 (이미 모두 올라가 있어요)");return}
+ if(confirm(todo.length+"곡을 팀 보관함에 올릴까요?"))uploadSongs(todo);
+};
+$("cloudOff").onclick=function(){
+ if(!confirm("팀 연결을 끊을까요? 이 기기에 저장된 곡은 그대로 남아요."))return;
+ stopSync();team="";try{localStorage.removeItem(TKEY)}catch(e){}
+ cstat("off");refreshCloud();
+};
+window.addEventListener("online",function(){if(team&&!FB)bootCloud()});
+var THKEY="worship-conti-theme";
+function curTheme(){var t=document.documentElement.getAttribute("data-theme");if(t==="dark"||t==="light")return t;return(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"}
+function applyTheme(t,save){
+ document.documentElement.setAttribute("data-theme",t);
+ if(save){try{localStorage.setItem(THKEY,t)}catch(e){}}
+ $("themeBtn").textContent=t==="dark"?"☀️":"🌙";
+ $("themeBtn").setAttribute("aria-label",t==="dark"?"라이트 모드로 변경":"다크 모드로 변경");
+ var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",t==="dark"?"#17171a":"#ffcd20");
+}
+$("themeBtn").onclick=function(){applyTheme(curTheme()==="dark"?"light":"dark",true)};
+applyTheme(curTheme(),false);
+setTab("arch");load();loadSet();setl.ids=setl.ids.filter(function(x){return !!byId(x)});$("setName").value=setl.name||"";cur=songs[0]?JSON.parse(JSON.stringify(songs[0])):blank();renderAll();bootCloud();
 </script>
 <script>
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")){
